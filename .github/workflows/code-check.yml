@@ -20,6 +20,7 @@ jobs:
         with:
           node-version: '18'
 
+
       - name: Install linters
         run: |
           npm install -g htmlhint stylelint eslint
@@ -35,3 +36,4 @@ jobs:
       - name: Run ESLint
         run: |
           eslint "**/*.js" || true
+          
