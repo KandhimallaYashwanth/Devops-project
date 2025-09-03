@@ -1,5 +1,195 @@
+// API Base URL - Update this to match your backend
+const API_BASE_URL = 'http://localhost:5000';
+
+// Authentication check - redirect to login if not authenticated
+function checkAuthentication() {
+    const token = localStorage.getItem('authToken');
+    const userName = localStorage.getItem('userName');
+    
+    if (!token || !userName) {
+        // Not authenticated, redirect to login
+        window.location.href = 'login.htm';
+        return false;
+    }
+    return true;
+}
+
+// Check authentication when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    // Check for OAuth callback parameters first
+    if (handleOAuthCallback()) {
+        return; // OAuth callback handled, authentication will be checked next
+    }
+    
+    if (!checkAuthentication()) {
+        return;
+    }
+    
+    // Initialize the page with authenticated user data
+    initializeAuthenticatedUser();
+});
+
+// Handle OAuth callback parameters
+function handleOAuthCallback() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+    const isNewUser = urlParams.get('is_new_user') === 'true';
+    const userId = urlParams.get('user_id');
+    const userType = urlParams.get('user_type');
+    
+    if (token && userId && userType) {
+        // Store authentication data
+        localStorage.setItem('authToken', token);
+        localStorage.setItem('userId', userId);
+        localStorage.setItem('userType', userType);
+        
+        // Get additional user info from token (decode JWT)
+        try {
+            const tokenPayload = JSON.parse(atob(token.split('.')[1]));
+            
+            // Store user info from token
+            localStorage.setItem('userName', 'Google User'); // Will be updated when we fetch user data
+            localStorage.setItem('userEmail', 'oauth@google.com'); // Will be updated when we fetch user data
+            
+            // Clear URL parameters
+            window.history.replaceState({}, document.title, window.location.pathname);
+            
+            // Show welcome message for new users
+            if (isNewUser) {
+                alert('Welcome to FarmLink! Please complete your profile.');
+            }
+            
+            // Initialize the page
+            initializeAuthenticatedUser();
+            return true;
+            
+        } catch (error) {
+            console.error('Error processing OAuth token:', error);
+            // Clear invalid token
+            localStorage.removeItem('authToken');
+            return false;
+        }
+    }
+    
+    return false;
+}
+
+// Initialize authenticated user data
+async function initializeAuthenticatedUser() {
+    const userName = localStorage.getItem('userName');
+    const userEmail = localStorage.getItem('userEmail');
+    const userType = localStorage.getItem('userType');
+    
+    // If this is an OAuth user with placeholder data, fetch real user info
+    if (userName === 'Google User' || userEmail === 'oauth@google.com') {
+        await fetchUserInfoFromBackend();
+    } else {
+        // Update UI with existing user info
+        updateUserInfoInUI(userName, userEmail);
+    }
+    
+    // Load marketplace posts from API
+    await loadMarketplacePosts();
+    // displayMarketplacePosts was removed; use displayPosts
+    await displayPosts();
+    await displayUserPosts();
+}
+
+// Fetch user info from backend for OAuth users
+async function fetchUserInfoFromBackend() {
+    try {
+        const token = localStorage.getItem('authToken');
+        const userId = localStorage.getItem('userId');
+        
+        if (!token || !userId) {
+            console.error('No token or user ID available');
+            return;
+        }
+        
+        // Call backend to get user info
+        const response = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (response.ok) {
+            const userData = await response.json();
+            
+            // Update localStorage with real user data
+            localStorage.setItem('userName', userData.name || 'Google User');
+            localStorage.setItem('userEmail', userData.email || 'oauth@google.com');
+            localStorage.setItem('userContact', userData.mobile || '');
+            
+            // Update UI
+            updateUserInfoInUI(userData.name, userData.email);
+        } else {
+            console.error('Failed to fetch user info:', response.statusText);
+            // Use placeholder data
+            updateUserInfoInUI('Google User', 'oauth@google.com');
+        }
+    } catch (error) {
+        console.error('Error fetching user info:', error);
+        // Use placeholder data
+        updateUserInfoInUI('Google User', 'oauth@google.com');
+    }
+}
+
+// Update user info in UI
+function updateUserInfoInUI(userName, userEmail) {
+    if (profileNameNavSpan) profileNameNavSpan.textContent = userName;
+    if (dropdownProfileNameSpan) dropdownProfileNameSpan.textContent = userName;
+    if (dropdownProfileEmailSpan) dropdownProfileEmailSpan.textContent = userEmail;
+}
+
+// Load marketplace posts from API
+async function loadMarketplacePosts(userTypeFilter = null, authorIdFilter = null) {
+    try {
+        const token = getAuthToken(); // Get the authentication token
+        
+        // Include Authorization header if a token exists
+        const headers = {};
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        let url = `${API_BASE_URL}/api/posts`;
+        const params = new URLSearchParams();
+
+        if (userTypeFilter) {
+            params.append('user_type', userTypeFilter);
+        }
+        if (authorIdFilter) {
+            params.append('author_id', authorIdFilter);
+        }
+
+        if (params.toString()) {
+            url += `?${params.toString()}`;
+        }
+
+        const response = await fetch(url, {
+            headers: headers
+        });
+        const data = await response.json();
+        
+        if (response.ok) {
+            // Update the marketplacePosts array with API data
+            marketplacePosts = data.posts || [];
+            
+            // Refresh the UI. No longer calling displayPosts or displayUserPosts directly
+            // as the calling functions will handle which display function is needed.
+        } else {
+            console.error('Failed to load posts:', data.error);
+            marketplacePosts = []; // Clear posts if loading fails
+        }
+    } catch (error) {
+        console.error('Error loading posts:', error);
+        marketplacePosts = []; // Clear posts on network error
+    }
+}
+
 // Store data in localStorage
-let marketplacePosts = JSON.parse(localStorage.getItem('marketplacePosts')) || [];
+let marketplacePosts = []; // Initialize as empty, will be populated by API
 let userChats = JSON.parse(localStorage.getItem('userChats')) || {};
 let userProfiles = JSON.parse(localStorage.getItem('userProfiles')) || {};
 let postViews = JSON.parse(localStorage.getItem('postViews')) || {};
@@ -41,10 +231,10 @@ const chatListPanel = document.querySelector('.chat-list-panel');
 const chatWindowPanel = document.getElementById('activeChatWindow');
 const chatSearchInput = document.getElementById('chatSearchInput');
 const conversationList = document.getElementById('conversationList');
-const activeChatHeader = chatWindowPanel ? chatWindowPanel.querySelector('.chat-header') : null;
-const chatMessagesContainer = document.getElementById('chatMessages');
-const chatInput = document.getElementById('chatInput');
-let sendMessageBtn = document.getElementById('sendMessage');
+const activeChatHeader = document.getElementById('activeChatHeader');
+const chatMessagesContainer = document.getElementById('activeChatWindow') ? document.getElementById('activeChatWindow').querySelector('#chatMessages') : document.getElementById('chatMessages');
+let chatInput = document.getElementById('activeChatWindow') ? document.getElementById('activeChatWindow').querySelector('#chatInput') : document.getElementById('chatInput');
+let sendMessageBtn = document.getElementById('activeChatWindow') ? document.getElementById('activeChatWindow').querySelector('#sendMessage') : document.getElementById('sendMessage');
 const closeChatPanelBtn = chatWindowPanel ? chatWindowPanel.querySelector('.close-chat-panel') : null;
 
 // Edit Profile elements
@@ -102,6 +292,59 @@ function showSection(sectionElement, navLinkId) {
 
 function getCurrentUser() {
     return localStorage.getItem('userName');
+}
+
+function getCurrentUserId() {
+    return localStorage.getItem('userId');
+}
+
+function getAuthToken() {
+    return localStorage.getItem('authToken');
+}
+
+// Helper: fetch and cache a user's display name by id
+async function fetchAndCacheUserName(userId) {
+    try {
+        if (!userId) return null;
+        // If cached name exists, return it
+        const cached = userProfiles[userId];
+        if (cached && cached.name) return cached.name;
+
+        const token = getAuthToken();
+        if (!token) return null;
+
+        const res = await fetch(`${API_BASE_URL}/api/users/${userId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) return null;
+        const data = await res.json();
+        const name = data.name || data.username || 'User';
+
+        userProfiles[userId] = { ...(userProfiles[userId] || {}), name: name, email: data.email };
+        localStorage.setItem('userProfiles', JSON.stringify(userProfiles));
+        return name;
+    } catch (e) {
+        return null;
+    }
+}
+
+// Helper: fetch minimal public user data (no auth) and cache it
+async function fetchAndCacheUserPublicName(userId) {
+    try {
+        if (!userId) return null;
+        const cached = userProfiles[userId];
+        if (cached && cached.name) return cached.name;
+
+        const res = await fetch(`${API_BASE_URL}/api/users/${userId}/public`);
+        if (!res.ok) return null;
+        const data = await res.json();
+        const name = data.name || 'User';
+        userProfiles[userId] = { ...(userProfiles[userId] || {}), name: name };
+        localStorage.setItem('userProfiles', JSON.stringify(userProfiles));
+        return name;
+    } catch {
+        return null;
+    }
 }
 
 function getCurrentUserType() {
@@ -221,9 +464,13 @@ function performLogout() {
      const confirmLogout = confirm('Are you sure you want to logout?');
       if (confirmLogout) {
         localStorage.removeItem('userName');
+        localStorage.removeItem('userEmail');
+        localStorage.removeItem('userType');
         localStorage.removeItem('userContact');
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('userId');
         localStorage.removeItem('currentUserType');
-        window.location.href = 'index.htm';
+        window.location.href = 'login.htm';
       }
 }
 
@@ -244,13 +491,13 @@ function createPostElement(post, isUserPost = false) {
   postElement.className = 'post-card';
   
   let postContent = '';
-  if (post.userType === 'farmer') {
+  if (post.user_type === 'farmer') {
     postContent = `
-      <h3>${post.cropName}</h3>
-      <p><strong>Details:</strong> ${post.cropDetails}</p>
+      <h3>${post.crop_name}</h3>
+      <p><strong>Details:</strong> ${post.crop_details}</p>
       <p><strong>Quantity:</strong> ${post.quantity}</p>
       <p><strong>Location:</strong> ${post.location}</p>
-       <p><strong>Posted:</strong> ${new Date(post.timestamp).toLocaleString()}</p>
+       <p><strong>Posted:</strong> ${new Date(post.created_at).toLocaleString()}</p>
     `;
   } else { // buyer post
     postContent = `
@@ -258,7 +505,7 @@ function createPostElement(post, isUserPost = false) {
       <p><strong>Organization:</strong> ${post.organization}</p>
       <p><strong>Location:</strong> ${post.location}</p>
       <p><strong>Requirements:</strong> ${post.requirements}</p>
-       <p><strong>Posted:</strong> ${new Date(post.timestamp).toLocaleString()}</p>
+       <p><strong>Posted:</strong> ${new Date(post.created_at).toLocaleString()}</p>
     `;
   }
 
@@ -268,23 +515,37 @@ function createPostElement(post, isUserPost = false) {
   if (!isUserPost) {
       const chatBtn = document.createElement('button');
       chatBtn.className = 'chat-btn';
-      const authorProfile = userProfiles[post.authorId] || {};
-      const authorDisplayName = authorProfile.name || post.authorId;
+      const authorId = post.author_id;
+      const authorProfile = userProfiles[authorId] || {};
+      const initialDisplayName = authorProfile.name || authorId;
 
-      chatBtn.textContent = `Chat with ${authorDisplayName}`;
-      chatBtn.dataset.authorId = post.authorId;
-       chatBtn.addEventListener('click', () => {
-          const authorId = chatBtn.dataset.authorId;
-          if (authorId) {
-              openChat(getCurrentUser(), authorId);
+      chatBtn.textContent = `Chat with ${initialDisplayName}`;
+      chatBtn.dataset.authorId = authorId;
+       chatBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const aId = chatBtn.dataset.authorId;
+          if (aId) {
+              openChat(getCurrentUserId(), aId);
               showSection(chatsSection, 'navChats');
                if (profileDropdownContent) profileDropdownContent.classList.remove('show');
           }
       });
       postActions.appendChild(chatBtn);
+
+      // If we don't have the author's name cached yet, fetch from public endpoint and update the label
+      if (!authorProfile.name) {
+          fetchAndCacheUserPublicName(authorId).then((name) => {
+              if (name && chatBtn && chatBtn.dataset.authorId === authorId) {
+                  chatBtn.textContent = `Chat with ${name}`;
+              }
+          }).catch(() => {});
+      }
   }
 
-   if (isUserPost) {
+   // Only show edit/delete for the owner always
+   const currentUserId = getCurrentUserId();
+   const userOwnsPost = currentUserId && post.author_id === currentUserId;
+   if (isUserPost || userOwnsPost) {
        const deleteBtn = document.createElement('button');
        deleteBtn.className = 'action-btn delete-btn';
        deleteBtn.innerHTML = '&#x1F5D1; Delete';
@@ -311,18 +572,25 @@ function createPostElement(post, isUserPost = false) {
   return postElement;
 }
 
-function displayPosts(filteredPosts = null) {
+async function displayPosts(filteredPosts = null) {
   const isFarmerPage = getCurrentUserType() === 'farmer';
   const postsContainer = isFarmerPage ? buyerPostsContainer : farmerPostsContainer;
   const postTypeToDisplay = isFarmerPage ? 'buyer' : 'farmer';
 
-  const postsToDisplay = filteredPosts || marketplacePosts;
+  // If a filtered list is provided (e.g., from search), use it as-is and do not refetch
+  let postsToDisplay = filteredPosts;
+  if (!postsToDisplay) {
+    // Otherwise fetch from backend with user type filter
+    await loadMarketplacePosts(postTypeToDisplay);
+    postsToDisplay = marketplacePosts;
+  }
 
   
   if (postsContainer) {
     postsContainer.innerHTML = '';
     const relevantPosts = postsToDisplay.filter(post => {
-        return post && post.userType && post.userType === postTypeToDisplay;
+        // The backend should already filter by user_type, but keep this for safety if data mixed
+        return post && post.user_type && post.user_type === postTypeToDisplay;
     });
 
     if (relevantPosts.length > 0) {
@@ -335,10 +603,18 @@ function displayPosts(filteredPosts = null) {
   }
 }
 
-function displayUserPosts() {
+async function displayUserPosts() {
     const currentUser = getCurrentUser();
-    // The filter below already ensures only the current user's posts are displayed
-    const userPosts = marketplacePosts.filter(post => post.authorId === currentUser);
+    const currentUserId = getCurrentUserId(); // Get the actual user ID
+
+    if (!currentUserId) {
+        console.error('User ID not available to display user posts.');
+        return;
+    }
+
+    // Load posts (endpoint doesn't filter by author_id yet), then filter locally by owner
+    await loadMarketplacePosts();
+    const userPosts = (marketplacePosts || []).filter(post => post && post.author_id === currentUserId);
 
     if (userPostsContainer) {
         userPostsContainer.innerHTML = '';
@@ -418,10 +694,25 @@ function openEditPostModal(post) {
 
     modal.querySelector('h2').textContent = 'Edit Post';
 
-    const isFarmer = post.userType === 'farmer';
+    const isFarmer = post.user_type === 'farmer';
 
-    postCropBtn = document.getElementById('postCrop');
-    postRequirementBtn = document.getElementById('postRequirement');
+    // Get buttons and strip existing listeners by cloning
+    const rawCropBtn = document.getElementById('postCrop');
+    const rawReqBtn = document.getElementById('postRequirement');
+    if (rawCropBtn) {
+        const newBtn = rawCropBtn.cloneNode(true);
+        rawCropBtn.parentNode.replaceChild(newBtn, rawCropBtn);
+        postCropBtn = newBtn;
+    } else {
+        postCropBtn = null;
+    }
+    if (rawReqBtn) {
+        const newBtn = rawReqBtn.cloneNode(true);
+        rawReqBtn.parentNode.replaceChild(newBtn, rawReqBtn);
+        postRequirementBtn = newBtn;
+    } else {
+        postRequirementBtn = null;
+    }
 
 
     if (postCropBtn) {
@@ -436,8 +727,8 @@ function openEditPostModal(post) {
     }
 
     if (isFarmer) {
-        document.getElementById('cropName').value = post.cropName || '';
-        document.getElementById('cropDetails').value = post.cropDetails || '';
+        document.getElementById('cropName').value = post.crop_name || '';
+        document.getElementById('cropDetails').value = post.crop_details || '';
         document.getElementById('quantity').value = post.quantity || '';
         document.getElementById('location').value = post.location || '';
 
@@ -490,14 +781,18 @@ function openEditPostModal(post) {
     modal.style.display = 'block';
 }
 
-function savePostChanges(postId, userType) {
+async function savePostChanges(postId, userType) {
+    console.log("Attempting to save post changes for postId:", postId, "with userType:", userType);
     const postIndex = marketplacePosts.findIndex(post => post.id === postId);
     if (postIndex === -1) {
         alert('Error: Post not found.');
+        console.error("Post not found for update, postId:", postId);
         return;
     }
 
     const post = marketplacePosts[postIndex];
+
+    let updatedPostData = {};
 
     if (userType === 'farmer') {
         const cropName = document.getElementById('cropName').value.trim();
@@ -506,22 +801,16 @@ function savePostChanges(postId, userType) {
         const location = document.getElementById('location').value.trim();
 
          if (cropName && cropDetails && quantity && location) {
-             post.cropName = cropName;
-             post.cropDetails = cropDetails;
-             post.quantity = quantity;
-             post.location = location;
-              post.timestamp = new Date().toISOString();
-
-
-             localStorage.setItem('marketplacePosts', JSON.stringify(marketplacePosts));
-             alert('Post updated successfully!');
-             if (createPostModal) createPostModal.style.display = 'none';
-             displayUserPosts();
-              if (marketplaceSection && marketplaceSection.style.display !== 'none' && getCurrentUserType() === 'buyer') {
-                 displayPosts();
-              }
+            updatedPostData = {
+                crop_name: cropName,
+                crop_details: cropDetails,
+                quantity: quantity,
+                location: location,
+            };
          } else {
-             alert('Please fill in all fields.');
+            alert('Please fill in all farmer post fields.');
+            console.error("Missing farmer post fields for update.", { cropName, cropDetails, quantity, location });
+            return;
          }
 
     } else {
@@ -531,26 +820,56 @@ function savePostChanges(postId, userType) {
         const location = document.getElementById('location').value.trim();
 
          if (orgName && orgType && requirements && location) {
-             post.name = orgName;
-             post.organization = orgType;
-             post.requirements = requirements;
-             post.location = location;
-             post.timestamp = new Date().toISOString();
-
-
-             localStorage.setItem('marketplacePosts', JSON.stringify(marketplacePosts));
-             alert('Requirement updated successfully!');
-             if (createPostModal) createPostModal.style.display = 'none';
-             displayUserPosts();
-              if (marketplaceSection && marketplaceSection.style.display !== 'none' && getCurrentUserType() === 'farmer') {
-                 displayPosts();
-              }
-         } else {
-             alert('Please fill in all fields.');
-         }
+            updatedPostData = {
+                name: orgName,
+                organization: orgType,
+                requirements: requirements,
+                location: location,
+            };
+        } else {
+            alert('Please fill in all buyer requirement fields.');
+            console.error("Missing buyer post fields for update.", { orgName, orgType, requirements, location });
+            return;
+        }
     }
-     setupCreatePostButtonListener();
-     setupPostSubmitButtonListeners();
+
+    console.log("Sending updated post data to backend:", updatedPostData);
+
+    try {
+        const token = getAuthToken();
+        if (!token) {
+            alert('Authentication required to update a post.');
+            console.error("No authentication token found for update post.");
+            return;
+        }
+
+        const response = await fetch(`${API_BASE_URL}/api/posts/${postId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(updatedPostData)
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            console.log("Post updated successfully in backend:", result.post);
+            alert('Post updated successfully!');
+            if (createPostModal) createPostModal.style.display = 'none';
+            await loadMarketplacePosts(); // Refresh all posts from the backend
+            displayUserPosts(); // Also refresh user specific posts
+         } else {
+            console.error('Failed to update post. Status:', response.status, 'Error:', result.error);
+            alert(`Failed to update post: ${result.error || 'Unknown error'}`);
+         }
+    } catch (error) {
+        console.error('Error updating post:', error);
+        alert('An error occurred while updating the post.');
+    }
+
+    // Do not re-bind create listeners here; the modal open handlers will set them as needed
 }
 
 function setupPostSubmitButtonListeners() {
@@ -608,10 +927,10 @@ function setupPostSubmitButtonListeners() {
 }
 
 
-function handlePostCreation() {
+async function handlePostCreation() {
     console.log("handlePostCreation called");
     const currentUserType = getCurrentUserType();
-    const authorId = getCurrentUser();
+    const authorId = getCurrentUserId();
 
     if (!authorId) {
         alert('User not logged in.');
@@ -642,14 +961,12 @@ function handlePostCreation() {
 
         if (cropName && cropDetails && quantity && location) {
             newPost = {
-                id: Date.now(),
-                userType: 'farmer',
-                cropName,
-                cropDetails,
-                quantity,
-                location,
-                authorId,
-                timestamp: new Date().toISOString()
+                user_type: 'farmer',
+                crop_name: cropName,
+                crop_details: cropDetails,
+                quantity: quantity,
+                location: location,
+                author_id: authorId,
             };
         } else {
             alert('Please fill in all farmer post fields.');
@@ -677,14 +994,12 @@ function handlePostCreation() {
 
          if (orgName && orgType && requirements && location) {
              newPost = {
-                 id: Date.now(),
-                 userType: 'buyer',
+                 user_type: 'buyer',
                  name: orgName,
                  organization: orgType,
-                 requirements,
-                 location,
-                 authorId,
-                 timestamp: new Date().toISOString()
+                 requirements: requirements,
+                 location: location,
+                 author_id: authorId,
              };
         } else {
              alert('Please fill in all buyer requirement fields.');
@@ -693,49 +1008,75 @@ function handlePostCreation() {
     }
 
     if (newPost) {
-        console.log("New Post created:", newPost);
-        marketplacePosts.push(newPost);
-        localStorage.setItem('marketplacePosts', JSON.stringify(marketplacePosts));
-        console.log("marketplacePosts after pushing:", marketplacePosts);
+        // Send the new post to the backend API
+        try {
+            const token = getAuthToken();
+            if (!token) {
+                alert('Authentication required to create a post.');
+                return;
+            }
 
-        const isFarmerPage = window.location.pathname.includes('farmer.html');
-         const isBuyerPage = window.location.pathname.includes('buyer.html');
+            const response = await fetch(`${API_BASE_URL}/api/posts`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(newPost)
+            });
 
-        if (marketplaceSection && marketplaceSection.style.display !== 'none') {
-             if ((currentUserType === 'farmer' && isBuyerPage) || (currentUserType === 'buyer' && isFarmerPage)) {
-                 console.log("Updating marketplace display");
-                 displayPosts();
-             }
-        }
+            const result = await response.json();
 
-        if (myPostsSection && myPostsSection.style.display !== 'none') {
-             if ((currentUserType === 'farmer' && isFarmerPage) || (currentUserType === 'buyer' && isBuyerPage)) {
-                 console.log("Updating user posts display");
-                 displayUserPosts();
-             }
-        }
-
-
+            if (response.ok) {
+                console.log("Post created successfully in backend:", result.post);
         if (createPostModal) createPostModal.style.display = 'none';
          alert('Post created successfully!');
+                // Refresh all posts from the backend
+                await loadMarketplacePosts();
+                displayUserPosts(); // Also refresh user specific posts
+
+            } else {
+                console.error('Failed to create post:', result.error);
+                alert(`Failed to create post: ${result.error}`);
+            }
+        } catch (error) {
+            console.error('Error creating post:', error);
+            alert('An error occurred while creating the post.');
+        }
     }
 }
 
 
-function deletePost(postId) {
-    const initialLength = marketplacePosts.length;
-    marketplacePosts = marketplacePosts.filter(post => post.id !== postId);
+async function deletePost(postId) {
+    try {
+        const token = getAuthToken();
+        if (!token) {
+            alert('Authentication required to delete a post.');
+            return;
+        }
 
-    localStorage.setItem('marketplacePosts', JSON.stringify(marketplacePosts));
+        const response = await fetch(`${API_BASE_URL}/api/posts/${postId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
 
-    displayUserPosts();
+        const result = await response.json();
 
-    const deletedPostWasVisibleInMarketplace = initialLength > marketplacePosts.length;
-     if (deletedPostWasVisibleInMarketplace && marketplaceSection && marketplaceSection.style.display !== 'none') {
-         displayPosts();
-     }
-
+        if (response.ok) {
+            console.log("Post deleted successfully in backend.");
      alert('Post deleted.');
+            await loadMarketplacePosts(); // Refresh all posts from the backend
+            displayUserPosts(); // Also refresh user specific posts
+        } else {
+            console.error('Failed to delete post:', result.error);
+            alert(`Failed to delete post: ${result.error}`);
+        }
+    } catch (error) {
+        console.error('Error deleting post:', error);
+        alert('An error occurred while deleting the post.');
+    }
 }
 
 
@@ -822,14 +1163,48 @@ function displayConversationsList() {
 }
 
 function openChat(user1, user2) {
-    const chatId = [user1, user2].sort().join('-');
+    // user2 is expected to be other user's ID
+    const otherUserId = user2;
 
-    if (!userChats[chatId]) {
-        userChats[chatId] = { messages: [] };
-        localStorage.setItem('userChats', JSON.stringify(userChats));
-    }
+    // Update chat header with other user's display name
+    const updateHeaderWithName = async () => {
+        let displayName = (userProfiles[otherUserId] && userProfiles[otherUserId].name) || null;
+        if (!displayName) {
+            displayName = await fetchAndCacheUserPublicName(otherUserId) || otherUserId;
+        }
+        let headerEl = activeChatHeader;
+        if (!headerEl && chatWindowPanel) {
+            headerEl = document.createElement('div');
+            headerEl.className = 'chat-header';
+            chatWindowPanel.prepend(headerEl);
+        }
+        if (headerEl) {
+            headerEl.innerHTML = '';
+            const contactNameSpan = document.createElement('span');
+            contactNameSpan.textContent = displayName;
+            contactNameSpan.style.color = '#2d7a2d';
+            contactNameSpan.style.fontWeight = '600';
+            headerEl.appendChild(contactNameSpan);
 
-    displayChatHistory(chatId);
+            const closeBtn = document.createElement('button');
+            closeBtn.classList.add('close-chat-panel');
+            closeBtn.innerHTML = '&times;';
+            closeBtn.addEventListener('click', () => {
+                if (chatWindowPanel) chatWindowPanel.classList.remove('active-chat');
+                if (chatListPanel) chatListPanel.style.display = 'flex';
+            });
+            headerEl.appendChild(closeBtn);
+        }
+    };
+
+    // Create or get chat from backend, then load messages and wire send
+    createOrGetChat(otherUserId).then(chat => {
+        if (!chat) return;
+        if (chatWindowPanel) chatWindowPanel.classList.add('active-chat');
+        updateHeaderWithName();
+        displayChatHistoryFromBackend(chat.id);
+        wireSendMessage(chat.id);
+    });
 
     const otherUserProfile = userProfiles[user2] || {};
     const otherUserDisplayName = otherUserProfile.name || user2;
@@ -856,24 +1231,7 @@ function openChat(user1, user2) {
 
 
     sendMessageBtn = document.getElementById('sendMessage');
-    if (sendMessageBtn) {
-         const newSendMessageBtn = sendMessageBtn.cloneNode(true);
-         sendMessageBtn.parentNode.replaceChild(newSendMessageBtn, sendMessageBtn);
-         sendMessageBtn = newSendMessageBtn;
-         sendMessageBtn.addEventListener('click', () => {
-             const messageText = chatInput.value.trim();
-             if (messageText) {
-                 sendChatMessage(chatId, messageText, user1);
-                 chatInput.value = '';
-             }
-         });
-         if (chatInput) {
-             chatInput.removeEventListener('keypress', handleChatInputKeypress);
-             chatInput.addEventListener('keypress', handleChatInputKeypress);
-         }
-         sendMessageBtn.dataset.chatId = chatId;
-         if (chatInput) chatInput.dataset.chatId = chatId;
-    }
+    // send button wiring moved to wireSendMessage
 }
 
 function handleChatInputKeypress(e) {
@@ -881,24 +1239,28 @@ function handleChatInputKeypress(e) {
         e.preventDefault();
         const messageText = chatInput.value.trim();
         const chatId = chatInput.dataset.chatId;
-        const currentUser = getCurrentUser();
+        const currentUser = getCurrentUserId();
 
          if (messageText && chatId && currentUser) {
-             sendChatMessage(chatId, messageText, currentUser);
+             sendChatMessageToBackend(chatId, messageText);
         chatInput.value = '';
       }
     }
 }
 
-function displayChatHistory(chatId) {
-    const chat = userChats[chatId];
-    if (!chat || !chatMessagesContainer) return;
-
+async function displayChatHistoryFromBackend(chatId) {
+    if (!chatMessagesContainer) return;
     chatMessagesContainer.innerHTML = '';
 
-    const currentUser = getCurrentUser();
+    const currentUser = getCurrentUserId();
+    try {
+        const token = getAuthToken();
+        const res = await fetch(`${API_BASE_URL}/api/chats/${chatId}/messages`, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (!res.ok) return;
+        const data = await res.json();
+        const messages = data.messages || [];
 
-    chat.messages.forEach(message => {
+        messages.forEach(message => {
         const messageElement = document.createElement('div');
         messageElement.classList.add('chat-message');
         messageElement.classList.add(message.sender === currentUser ? 'sent' : 'received');
@@ -912,12 +1274,12 @@ function displayChatHistory(chatId) {
          }
 
 
-        const textNode = document.createTextNode(message.text);
+        const textNode = document.createTextNode(message.message || message.text);
         messageElement.appendChild(textNode);
 
         const timestampSpan = document.createElement('span');
         timestampSpan.className = 'timestamp';
-        const messageDate = new Date(message.timestamp);
+        const messageDate = new Date(message.created_at || message.timestamp);
         const options = { hour: '2-digit', minute: '2-digit', hour12: true };
         timestampSpan.textContent = messageDate.toLocaleTimeString('en-US', options);
         messageElement.appendChild(timestampSpan);
@@ -927,23 +1289,81 @@ function displayChatHistory(chatId) {
     });
 
     chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight;
+    } catch {}
 }
 
-function sendChatMessage(chatId, messageText, sender) {
-    const chat = userChats[chatId];
-    if (!chat) return;
+async function sendChatMessageToBackend(chatId, messageText) {
+    try {
+        if (!chatId) {
+            console.error('sendChatMessageToBackend: Missing chatId');
+            return;
+        }
+        console.log('Sending message to chat', chatId, 'text:', messageText);
+        const token = getAuthToken();
+        const res = await fetch(`${API_BASE_URL}/api/chats/${chatId}/messages`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: messageText })
+        });
+        if (!res.ok) {
+            const err = await res.text();
+            console.error('Message send failed', res.status, err);
+            return;
+        }
+        await displayChatHistoryFromBackend(chatId);
+        await displayConversationsList();
+    } catch {}
+}
 
-    const newMessage = {
-        sender: sender,
-        text: messageText,
-        timestamp: new Date().toISOString()
-    };
+async function createOrGetChat(otherUserId) {
+    try {
+        const token = getAuthToken();
+        if (!otherUserId) {
+            console.error('createOrGetChat: missing otherUserId');
+            return null;
+        }
+        console.log('Creating/Getting chat with', otherUserId);
+        const res = await fetch(`${API_BASE_URL}/api/chats`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ other_user_id: otherUserId })
+        });
+        if (!res.ok) {
+            const txt = await res.text();
+            console.error('createOrGetChat failed', res.status, txt);
+            alert('Failed to open chat. Please try again.');
+            return null;
+        }
+        const data = await res.json();
+        return data.chat;
+    } catch { return null; }
+}
 
-    chat.messages.push(newMessage);
-    localStorage.setItem('userChats', JSON.stringify(userChats));
-
-    displayChatHistory(chatId);
-    displayConversationsList();
+function wireSendMessage(chatId) {
+    sendMessageBtn = document.getElementById('sendMessage');
+    chatInput = document.getElementById('chatInput');
+    if (sendMessageBtn && chatInput) {
+        const newSendMessageBtn = sendMessageBtn.cloneNode(true);
+        sendMessageBtn.parentNode.replaceChild(newSendMessageBtn, sendMessageBtn);
+        sendMessageBtn = newSendMessageBtn;
+        sendMessageBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const messageText = chatInput.value.trim();
+            if (messageText) {
+                sendChatMessageToBackend(chatId, messageText);
+                chatInput.value = '';
+            }
+        });
+        if (chatInput) {
+            chatInput.removeEventListener('keypress', handleChatInputKeypress);
+            chatInput.addEventListener('keypress', handleChatInputKeypress);
+        }
+        sendMessageBtn.dataset.chatId = chatId;
+        if (chatInput) chatInput.dataset.chatId = chatId;
+    } else {
+        // Fallback: if button not in DOM yet, retry shortly
+        setTimeout(() => wireSendMessage(chatId), 100);
+    }
 }
 
 if (chatSearchInput && conversationList) {
@@ -1027,16 +1447,17 @@ if (locationSearchInput) {
         const isFarmerPage = getCurrentUserType() === 'farmer';
         const postTypeToDisplay = isFarmerPage ? 'buyer' : 'farmer';
 
-        const filtered = marketplacePosts.filter(post => {
+        // Filter client-side on the posts already loaded into marketplacePosts
+        const filtered = (marketplacePosts || []).filter(post => {
             const postLocation = post.location ? post.location.toLowerCase() : '';
-            const postCropName = post.cropName ? post.cropName.toLowerCase() : '';
+            const postCropName = post.crop_name ? post.crop_name.toLowerCase() : '';
             const postBuyerName = post.name ? post.name.toLowerCase() : '';
             const postRequirements = post.requirements ? post.requirements.toLowerCase() : '';
 
-            return post && post.userType === postTypeToDisplay &&
+            return post && post.user_type === postTypeToDisplay &&
                    (postLocation.includes(searchTerm) ||
-                    (post.userType === 'farmer' && postCropName.includes(searchTerm)) ||
-                    (post.userType === 'buyer' && (postBuyerName.includes(searchTerm) || postRequirements.includes(searchTerm)))
+                    (post.user_type === 'farmer' && postCropName.includes(searchTerm)) ||
+                    (post.user_type === 'buyer' && (postBuyerName.includes(searchTerm) || postRequirements.includes(searchTerm)))
                    );
         });
         displayPosts(filtered);
