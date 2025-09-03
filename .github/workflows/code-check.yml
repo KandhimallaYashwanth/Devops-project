@@ -1,4 +1,4 @@
-name: Lint HTML, CSS, JS
+name: Lint HTML, CSS, JS, and Python
 
 on:
   push:
@@ -8,19 +8,20 @@ on:
 
 jobs:
   lint-code:
-    name: Lint HTML, CSS, JS files
+    name: Lint HTML, CSS, JS, and Python files
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      # Frontend linting (HTML, CSS, JS)
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
 
-      - name: Install linters
+      - name: Install linters for HTML, CSS, and JS
         run: |
           npm install -g htmlhint stylelint eslint
 
@@ -35,4 +36,31 @@ jobs:
       - name: Run ESLint
         run: |
           eslint "**/*.js" || true
-          
+
+      # Python setup and linting
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+      - name: Install Python linters
+        run: |
+          pip install pylint flake8
+
+      - name: Run Pylint
+        run: |
+          pylint "**/*.py" || true
+
+      - name: Run Flake8
+        run: |
+          flake8 "**/*.py" || true
+
+      
+      - name: Run Python tests
+        run: |
+          pytest || true

@@ -27,7 +27,7 @@ Both farmers and buyers can **chat directly**, reducing the role of middlemen an
 ## 🛠 Tech Stack
 - **Frontend:** HTML, CSS, JavaScript  
 - **Backend:** Python (Flask)  
-- **Database:** MySQL
+- **Database:** Supabase
 - **Authentication:** JWT (JSON Web Tokens)  
 - **Deployment:** Netlify (frontend), Render (backend + DB)  
 
