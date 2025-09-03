@@ -31,3 +31,15 @@ Both farmers and buyers can **chat directly**, reducing the role of middlemen an
 - **Authentication:** JWT (JSON Web Tokens)  
 - **Deployment:** Netlify (frontend), Render (backend + DB)  
 
+
+## Continuous Integration (CI)
+This project uses **GitHub Actions** to automatically run tests and checks on every push or pull request to the `main` branch.
+
+### Workflow
+- **Trigger:** On push or pull request to `main`
+- **Steps:**
+  1. Checkout the code
+  2. Set up Python environment
+  3. Install dependencies (`pip install -r backend/requirements.txt`)
+  4. Run linting and tests
+  5. Optional: Build or deploy steps can be added
