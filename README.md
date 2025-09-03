@@ -3,7 +3,7 @@
 ## 📌 Project Overview
 **Farm Link** is a web application designed to connect **farmers** and **buyers** directly.  
 It helps farmers showcase their produce online and enables buyers to browse available produce or post their requirements.  
-Both farmers and buyers can **chat directly**, reducing the role of middlemen and making transactions more transparent.
+Both farmers and buyers can **chat directly**, reducing the role of middlemen.
 
 ---
 
