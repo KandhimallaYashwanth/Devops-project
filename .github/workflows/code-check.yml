@@ -46,7 +46,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r backend/requirements.txt
 
       - name: Install Python linters
         run: |
@@ -60,8 +60,7 @@ jobs:
         run: |
           flake8 "**/*.py" || true
 
-      # Optional: Run backend tests if you have any
+      
       - name: Run Python tests
         run: |
-          # Example: Run your tests with pytest or your chosen testing framework
           pytest || true
