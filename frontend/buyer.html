@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Buyer Page</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <link rel="stylesheet" href="fbstyles.css" />
+    <script type="module" src="fbscript.js"></script>
+    <script src="translation.js"></script>
+  </head>
+  <body>
+    <!-- Static Navigation Bar -->
+    <nav class="main-nav">
+        <div class="navbar-left">
+            <img src="icon.svg" alt="FarmLink Logo" class="logo">
+            <span>FarmLink</span>
+        </div>
+        <div class="navbar-right">
+            <ul>
+                <li><a href="#" id="navMarketplace">Marketplace</a></li>
+                <li><a href="#" id="navChats">Chats</a></li>
+                <li><a href="#" id="navMyPosts">My Requirements</a></li>
+            </ul>
+            <!-- New Logout Button in Navbar -->
+            <button id="navBarLogoutBtn" class="action-btn logout-btn">Logout</button>
+
+            <!-- Profile Access System Dropdown Trigger -->
+            <div class="profile-dropdown-trigger" id="profileDropdownTrigger">
+      <img src="profile.png" alt="Profile" class="avatar">
+                <span id="profileNameNav">User</span> <!-- User's name here -->
+</div>
+
+            <!-- Profile Access System Dropdown Content -->
+            <div class="profile-dropdown-content" id="profileDropdownContent">
+                <div class="profile-summary">
+          <img src="profile.png" alt="Profile" class="avatar-large">
+                     <p><strong>Name:</strong> <span id="dropdownProfileName">User</span></p>
+                     <p><strong>Email:</strong> <span id="dropdownProfileEmail">email@example.com</span></p>
+                     <!-- Add other summary info if needed -->
+          </div>
+                <a href="#" id="dropdownEditProfile">Edit Profile</a>
+      </div>
+</div>
+         
+
+    </nav>
+
+    <div class="background-overlay"></div>
+    
+    <main>
+        <!-- Dashboard Section (Initially Hidden) -->
+        <div id="dashboardSection" class="content-section" style="display: none;">
+            <h3>Dashboard</h3>
+            <!-- Dashboard content will be loaded here -->
+        </div>
+
+       <!-- Marketplace Section (Existing) -->
+       <div id="marketplaceSection" class="content-section">
+      <div class="hero-section">
+        <h1>Welcome to Buyers' Marketplace</h1>
+        <p>Find fresh produce directly from farmers</p>
+      </div>
+
+      <div class="search-container">
+        <input type="text" id="locationSearch" placeholder="Search by location..." class="search-input">
+      </div>
+
+      <div class="content-wrapper">
+        <div class="posts-container">
+          <div class="section-header">
+            <h2>Available Crops</h2>
+            <button id="createPostBtn" class="action-btn">Post Requirement</button>
+          </div>
+          
+          <div id="farmerPosts" class="posts-grid"></div>
+            </div>
+          </div>
+       </div>
+
+        <!-- My Requirements Section (Initially Hidden) -->
+        <div id="myPostsSection" class="content-section" style="display: none;">
+             <h3>My Requirements</h3>
+             <div id="userPostsContainer" class="user-posts-container">
+                 <!-- User's requirements will be loaded here -->
+             </div>
+        </div>
+
+         <!-- Chats Section (Initially Hidden) -->
+        <div id="chatsSection" class="content-section" style="display: none;">
+            <h3>Chats</h3>
+             <!-- Integrated Chat Interface -->
+             <div class="chat-interface">
+                 <!-- Left Panel: Chat list/contacts -->
+                 <div class="chat-list-panel">
+                     <div class="chat-search">
+                         <input type="text" id="chatSearchInput" placeholder="Search chat..." class="form-input">
+                     </div>
+                     <h4>Conversations</h4>
+                     <ul id="conversationList">
+                         <!-- Conversation items will be loaded here by script -->
+                         <!-- Example Conversation Item Structure (hidden/template) -->
+                         <!--
+                         <li class="conversation-item">
+                             <div class="chat-avatar">
+                                 <img src="profile.png" alt="Avatar" class="avatar">
+                             </div>
+                             <div class="conversation-info">
+                                 <div class="contact-name">Contact Name</div>
+                                 <div class="last-message-preview">Last message text...</div>
+                             </div>
+                             <div class="conversation-meta">
+                                 <div class="last-message-timestamp">12:00 PM</div>
+                                 <div class="unread-indicator" style="display: none;">1</div>
+                             </div>
+                         </li>
+                         -->
+                     </ul>
+                 </div>
+                 <!-- Right Panel: Chat window -->
+                 <div class="chat-window-panel" id="activeChatWindow">
+                     <div class="chat-header" id="activeChatHeader">
+                         <!-- Contact info will be loaded here -->
+                         <button class="close-chat-panel">&times;</button> <!-- Close button for mobile -->
+                     </div>
+                     <div class="chat-messages" id="chatMessages">
+                         <!-- Messages will be loaded here by script -->
+                     </div>
+                     <div class="chat-input-container">
+                         <input type="text" id="chatInput" placeholder="Type your message..." class="form-input">
+                         <button id="sendMessage" class="action-btn">Send</button>
+                     </div>
+                 </div>
+             </div>
+        </div>
+
+         <!-- Edit Profile Section (Initially Hidden) -->
+        <div id="editProfileSection" class="content-section" style="display: none;">
+            <h3>Edit Profile</h3>
+             <div id="profileEditForm">
+                <!-- Profile edit form elements will go here -->
+                <label for="editUserName">Name:</label>
+                <input type="text" id="editUserName" class="form-input"><br>
+
+                 <label for="editUserContact">Contact:</label>
+                <input type="tel" id="editUserContact" class="form-input"><br>
+
+                 <!-- Add other profile fields as needed -->
+
+                <button id="saveProfileBtn">Save Profile</button>
+            </div>
+        </div>
+
+        <!-- Existing Chat Sidebar (Will keep for now but may remove later if fully integrated) -->
+           <div class="chat-sidebar" id="chatContainer" style="display: none;">
+              <div class="chat-header">
+                <h3>Chat</h3>
+                <button class="close-chat">&times;</button>
+              </div>
+              <div class="chat-messages" id="chatMessages"></div>
+              <div class="chat-input-container">
+                <input type="text" id="chatInput" placeholder="Type your message...">
+                <button id="sendMessage">Send</button>
+              </div>
+            </div>
+
+      </div>
+    </main>
+
+    <!-- Existing Create Post Modal -->
+          <div id="createPostForm" class="modal">
+            <div class="modal-content">
+              <span class="close-btn">&times;</span>
+              <h2>Post Requirement</h2>
+              <div class="create-post-form">
+                <input type="text" id="orgName" placeholder="Organization Name" class="form-input">
+                <select id="orgType" class="form-input">
+                  <option value="">Select Organization Type</option>
+                  <option value="Restaurant">Restaurant</option>
+                  <option value="Hotel">Hotel</option>
+                  <option value="Supermarket">Supermarket</option>
+                  <option value="Other">Other</option>
+                </select>
+                <textarea id="requirements" placeholder="Requirements" class="form-input"></textarea>
+                <input type="text" id="location" placeholder="Location" class="form-input">
+                <button id="postRequirement" class="submit-btn">Post Requirement</button>
+            </div>
+          </div>
+        </div>
+
+    <script>
+      // Get the stored name from localStorage
+       const userName = localStorage.getItem("userName");
+
+// Check if userName exists, and update the profile section dynamically
+       if (userName)
+        {
+       const profileName = document.querySelector(".profile-info h2"); // Assuming this is where the name is displayed
+       profileName.textContent = userName;
+        }
+
+    </script>
+
+  </body>
+</html>
