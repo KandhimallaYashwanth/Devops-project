@@ -16,4 +16,4 @@ Built as a single-page application, FarmLink provides real-time interaction capa
 3. Users can:
    - Message each other
    - Manage their own posts
-   - Update profiles
+   - Update profiles.
