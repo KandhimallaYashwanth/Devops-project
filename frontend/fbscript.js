@@ -1,5 +1,5 @@
 // API Base URL - Update this to match your backend
-const API_BASE_URL = 'http://localhost:5000';
+const API_BASE_URL = 'http://127.0.0.1:5050';
 
 function setupCreatePostButtonListener() {
     const createPostBtn = document.getElementById('createPostBtn');
@@ -20,7 +20,7 @@ function checkAuthentication() {
     
     if (!token || !userName) {
         // Not authenticated, redirect to login
-        window.location.href = 'login.htm';
+        window.location.href = 'login.html';
         return false;
     }
     return true;
@@ -482,7 +482,7 @@ function performLogout() {
         localStorage.removeItem('authToken');
         localStorage.removeItem('userId');
         localStorage.removeItem('currentUserType');
-        window.location.href = 'login.htm';
+        window.location.href = 'login.html';
       }
 }
 
@@ -1493,7 +1493,7 @@ document.addEventListener('DOMContentLoaded', () => {
         displayPosts();
         populateProfileDropdown();
     } else {
-        window.location.href = 'index.htm';
+        window.location.href = 'index.html';
     }
 
     setupCreatePostButtonListener();
