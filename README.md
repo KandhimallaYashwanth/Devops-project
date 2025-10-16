@@ -6,7 +6,6 @@ It helps farmers showcase their produce online and enables buyers to browse avai
 Both farmers and buyers can **chat directly**, reducing the role of middlemen.
 
 ---
-
 ## ✨ Features
 
 ### 👨‍🌾 Farmers
