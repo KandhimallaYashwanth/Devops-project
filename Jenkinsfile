@@ -1,6 +1,6 @@
 pipeline {
   agent any
-
+  
   environment {
     // Configure these in Jenkins: Docker Hub credentials and image name
     DOCKERHUB_CREDENTIALS = credentials('dockerhub-creds')
