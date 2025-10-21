@@ -7,6 +7,7 @@ pipeline {
     DOCKER_USERNAME = "${DOCKERHUB_CREDENTIALS_USR}"
     DOCKER_PASSWORD = "${DOCKERHUB_CREDENTIALS_PSW}"
 
+    
     // Docker image names
     BACKEND_IMAGE = "kandhimallayashwanth/farmlink-backend"
     FRONTEND_IMAGE = "kandhimallayashwanth/farmlink-frontend"
@@ -17,7 +18,7 @@ pipeline {
     // Optional Render deploy hook (if configured)
     RENDER_DEPLOY_HOOK = credentials('render-deploy-hook')
   }
-
+  
   options {
     timestamps()
     ansiColor('xterm')
